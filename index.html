@@ -1,0 +1,746 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Agenda">
+<meta name="theme-color" content="#0f1115">
+<title>Agenda</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='20' fill='%234f7cff'/%3E%3Ctext x='50' y='68' font-size='58' text-anchor='middle' fill='white' font-family='sans-serif'%3E%F0%9F%93%86%3C/text%3E%3C/svg%3E">
+<link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='20' fill='%234f7cff'/%3E%3Ctext x='50' y='68' font-size='58' text-anchor='middle' fill='white' font-family='sans-serif'%3E%F0%9F%93%86%3C/text%3E%3C/svg%3E">
+<style>
+  :root{
+    --bg:#0f1115; --panel:#171a21; --panel2:#1e222b; --border:#2a2f3a;
+    --text:#eef1f6; --muted:#8b93a3; --accent:#4f7cff; --accent2:#7c5cff;
+    --ok:#3ecf8e; --warn:#ff9f43; --danger:#ff5c6c;
+    --radius:14px;
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+  html,body{height:100%;}
+  body{
+    margin:0; background:var(--bg); color:var(--text);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    overscroll-behavior-y:contain;
+    padding-top:env(safe-area-inset-top);
+    padding-bottom:env(safe-area-inset-bottom);
+  }
+  #app{display:flex; flex-direction:column; height:100vh; height:100dvh;}
+
+  header{
+    display:flex; align-items:center; justify-content:space-between;
+    padding:14px 16px 10px; flex-shrink:0;
+  }
+  header h1{font-size:20px; margin:0; font-weight:700;}
+  .icon-btn{
+    background:var(--panel2); border:1px solid var(--border); color:var(--text);
+    width:40px; height:40px; border-radius:12px; font-size:18px;
+    display:flex; align-items:center; justify-content:center;
+  }
+  .icon-btn:active{transform:scale(.94);}
+
+  nav.tabs{
+    display:flex; gap:6px; padding:0 16px 12px; flex-shrink:0;
+  }
+  .tab{
+    flex:1; text-align:center; padding:9px 0; border-radius:10px;
+    background:var(--panel); color:var(--muted); font-size:14px; font-weight:600;
+    border:1px solid var(--border);
+  }
+  .tab.active{background:var(--accent); color:white; border-color:var(--accent);}
+
+  main{flex:1; overflow:hidden; position:relative;}
+  .view{position:absolute; inset:0; overflow-y:auto; padding:0 16px 100px; display:none;}
+  .view.active{display:block;}
+
+  /* Month view */
+  .month-nav{display:flex; align-items:center; justify-content:space-between; padding:6px 0 14px;}
+  .month-nav .m-title{font-size:17px; font-weight:700;}
+  .month-nav button{background:none; border:none; color:var(--text); font-size:20px; padding:6px 12px;}
+  .weekday-row{display:grid; grid-template-columns:repeat(7,1fr); gap:4px; margin-bottom:6px;}
+  .weekday-row div{text-align:center; font-size:11px; color:var(--muted); font-weight:600;}
+  .grid{display:grid; grid-template-columns:repeat(7,1fr); gap:4px;}
+  .day-cell{
+    aspect-ratio:1/1; border-radius:10px; background:var(--panel);
+    border:1px solid var(--border); padding:5px; position:relative;
+    display:flex; flex-direction:column; gap:2px;
+  }
+  .day-cell.other-month{opacity:.35;}
+  .day-cell.today{border-color:var(--accent); border-width:2px;}
+  .day-cell .dnum{font-size:12px; font-weight:600; color:var(--text);}
+  .day-cell .dots{display:flex; gap:2px; flex-wrap:wrap; margin-top:auto;}
+  .dot{width:5px; height:5px; border-radius:50%; background:var(--accent);}
+  .dot.personal{background:var(--accent2);}
+  .dot.todo{background:var(--ok);}
+
+  /* Day view */
+  .day-header{display:flex; align-items:center; justify-content:space-between; padding:6px 0 12px;}
+  .day-header .d-title{font-size:17px; font-weight:700;}
+  .day-header button{background:none; border:none; color:var(--text); font-size:20px; padding:6px 12px;}
+  .timeline{position:relative; margin-top:4px;}
+  .hour-row{
+    display:flex; border-top:1px solid var(--border); min-height:56px; position:relative;
+  }
+  .hour-label{
+    width:52px; flex-shrink:0; font-size:11px; color:var(--muted);
+    padding-top:2px; text-align:right; padding-right:8px;
+  }
+  .hour-slot{flex:1; position:relative;}
+  .events-layer{
+    position:absolute; top:0; left:60px; right:0; bottom:0; pointer-events:none;
+  }
+  .evt-block{
+    position:absolute; border-radius:9px; padding:5px 7px; font-size:11.5px;
+    overflow:hidden; pointer-events:auto; border:1px solid rgba(255,255,255,.12);
+    display:flex; flex-direction:column; line-height:1.25;
+  }
+  .evt-block b{font-size:12px; display:block; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+  .evt-block span.time{opacity:.85; font-size:10.5px;}
+  .evt-work{background:#2a3550; color:#c9d6ff;}
+  .evt-personal{background:linear-gradient(135deg,var(--accent2),#5b3fd9); color:white;}
+
+  /* Todo view */
+  .todo-item{
+    display:flex; align-items:center; gap:10px; background:var(--panel);
+    border:1px solid var(--border); border-radius:12px; padding:12px; margin-bottom:8px;
+  }
+  .todo-check{
+    width:22px; height:22px; border-radius:7px; border:2px solid var(--muted);
+    flex-shrink:0; display:flex; align-items:center; justify-content:center; font-size:14px;
+  }
+  .todo-check.done{background:var(--ok); border-color:var(--ok); color:#08251a;}
+  .todo-text{flex:1; font-size:14.5px;}
+  .todo-text.done{text-decoration:line-through; color:var(--muted);}
+  .todo-due{font-size:11px; color:var(--muted);}
+  .todo-del{color:var(--danger); font-size:18px; padding:4px 6px;}
+  .empty-hint{color:var(--muted); font-size:13px; text-align:center; padding:40px 20px;}
+
+  /* Floating add button */
+  .fab-row{
+    position:fixed; bottom:calc(18px + env(safe-area-inset-bottom)); left:0; right:0;
+    display:flex; justify-content:center; gap:12px; pointer-events:none;
+  }
+  .fab{
+    pointer-events:auto; width:58px; height:58px; border-radius:50%; border:none;
+    display:flex; align-items:center; justify-content:center; font-size:24px;
+    box-shadow:0 6px 20px rgba(0,0,0,.4);
+  }
+  .fab-add{background:var(--accent); color:white;}
+  .fab-mic{background:var(--panel2); color:var(--text); border:1px solid var(--border);}
+  .fab-mic.listening{background:var(--danger); animation:pulse 1.2s infinite;}
+  @keyframes pulse{0%{box-shadow:0 0 0 0 rgba(255,92,108,.5);}70%{box-shadow:0 0 0 16px rgba(255,92,108,0);}100%{box-shadow:0 0 0 0 rgba(255,92,108,0);}}
+
+  /* Modal */
+  .overlay{
+    position:fixed; inset:0; background:rgba(0,0,0,.55); display:none;
+    align-items:flex-end; z-index:50;
+  }
+  .overlay.show{display:flex;}
+  .sheet{
+    background:var(--panel); width:100%; border-radius:20px 20px 0 0;
+    padding:18px 18px calc(18px + env(safe-area-inset-bottom));
+    max-height:88vh; overflow-y:auto;
+  }
+  .sheet h2{margin:0 0 14px; font-size:17px;}
+  .field{margin-bottom:12px;}
+  .field label{display:block; font-size:12px; color:var(--muted); margin-bottom:5px; font-weight:600;}
+  .field input, .field select, .field textarea{
+    width:100%; background:var(--panel2); border:1px solid var(--border); color:var(--text);
+    padding:11px 12px; border-radius:10px; font-size:15px; font-family:inherit;
+  }
+  .row2{display:flex; gap:10px;}
+  .row2 .field{flex:1;}
+  .type-toggle{display:flex; gap:8px; margin-bottom:14px;}
+  .type-toggle button{
+    flex:1; padding:9px; border-radius:10px; background:var(--panel2); color:var(--muted);
+    border:1px solid var(--border); font-size:13.5px; font-weight:600;
+  }
+  .type-toggle button.active{background:var(--accent); color:white; border-color:var(--accent);}
+  .sheet-actions{display:flex; gap:10px; margin-top:6px;}
+  .sheet-actions button{
+    flex:1; padding:13px; border-radius:12px; border:none; font-size:15px; font-weight:700;
+  }
+  .btn-cancel{background:var(--panel2); color:var(--text); border:1px solid var(--border) !important;}
+  .btn-save{background:var(--accent); color:white;}
+  .parse-preview{
+    background:var(--panel2); border:1px dashed var(--border); border-radius:10px;
+    padding:10px 12px; font-size:13px; color:var(--muted); margin-bottom:12px;
+  }
+  .parse-preview b{color:var(--text);}
+  .toast{
+    position:fixed; top:calc(14px + env(safe-area-inset-top)); left:50%; transform:translateX(-50%);
+    background:#1e222b; border:1px solid var(--border); padding:10px 16px; border-radius:12px;
+    font-size:13px; z-index:80; opacity:0; transition:opacity .25s; pointer-events:none;
+  }
+  .toast.show{opacity:1;}
+</style>
+</head>
+<body>
+<div id="app">
+  <header>
+    <h1>Agenda</h1>
+    <button class="icon-btn" id="todayBtn" title="Today">◎</button>
+  </header>
+
+  <nav class="tabs">
+    <div class="tab active" data-tab="month">Month</div>
+    <div class="tab" data-tab="day">Day</div>
+    <div class="tab" data-tab="todo">To-Do</div>
+  </nav>
+
+  <main>
+    <section class="view active" id="view-month">
+      <div class="month-nav">
+        <button id="mPrev">‹</button>
+        <div class="m-title" id="mTitle">—</div>
+        <button id="mNext">›</button>
+      </div>
+      <div class="weekday-row">
+        <div>S</div><div>M</div><div>T</div><div>W</div><div>T</div><div>F</div><div>S</div>
+      </div>
+      <div class="grid" id="mGrid"></div>
+    </section>
+
+    <section class="view" id="view-day">
+      <div class="day-header">
+        <button id="dPrev">‹</button>
+        <div class="d-title" id="dTitle">—</div>
+        <button id="dNext">›</button>
+      </div>
+      <div class="timeline" id="timeline"></div>
+    </section>
+
+    <section class="view" id="view-todo">
+      <div style="height:8px"></div>
+      <div id="todoList"></div>
+    </section>
+  </main>
+
+  <div class="fab-row">
+    <button class="fab fab-mic" id="micBtn">🎤</button>
+    <button class="fab fab-add" id="addBtn">＋</button>
+  </div>
+</div>
+
+<div class="overlay" id="overlay">
+  <div class="sheet">
+    <h2 id="sheetTitle">New item</h2>
+    <div class="type-toggle">
+      <button class="active" data-type="event" id="typeEventBtn">Event</button>
+      <button data-type="todo" id="typeTodoBtn">To-Do</button>
+    </div>
+    <div id="parsePreview" class="parse-preview" style="display:none;"></div>
+    <div class="field">
+      <label>Label</label>
+      <input type="text" id="fLabel" placeholder="e.g. Dentist appointment">
+    </div>
+    <div class="field">
+      <label>Date</label>
+      <input type="date" id="fDate">
+    </div>
+    <div class="row2" id="timeRow">
+      <div class="field">
+        <label>Start time</label>
+        <input type="time" id="fStart">
+      </div>
+      <div class="field">
+        <label>End time</label>
+        <input type="time" id="fEnd">
+      </div>
+    </div>
+    <div class="sheet-actions">
+      <button class="btn-cancel" id="cancelBtn">Cancel</button>
+      <button class="btn-save" id="saveBtn">Save</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+/* ---------------- Storage ---------------- */
+const STORE_KEY = 'agenda_items_v1';
+function loadItems(){
+  try{ return JSON.parse(localStorage.getItem(STORE_KEY)) || []; }catch(e){ return []; }
+}
+function saveItems(items){ localStorage.setItem(STORE_KEY, JSON.stringify(items)); }
+let items = loadItems();
+
+// Seed a few sample work events on first run so the timeline isn't empty
+if(items.length === 0){
+  const today = new Date();
+  const iso = d => d.toISOString().slice(0,10);
+  items = [
+    {id:cryptoId(), type:'event', kind:'work', label:'Team standup', date:iso(today), start:'09:30', end:'09:45'},
+    {id:cryptoId(), type:'event', kind:'work', label:'Client sync', date:iso(today), start:'11:00', end:'12:00'},
+    {id:cryptoId(), type:'todo', label:'Renew domain', date:iso(today), done:false},
+  ];
+  saveItems(items);
+}
+function cryptoId(){ return 'id_' + Date.now().toString(36) + Math.random().toString(36).slice(2,8); }
+
+/* ---------------- State ---------------- */
+let currentMonth = new Date(); currentMonth.setDate(1);
+let currentDay = new Date();
+let activeTab = 'month';
+let editingType = 'event';
+
+/* ---------------- Helpers ---------------- */
+const $ = sel => document.querySelector(sel);
+const pad2 = n => String(n).padStart(2,'0');
+function toISO(d){ return d.getFullYear()+'-'+pad2(d.getMonth()+1)+'-'+pad2(d.getDate()); }
+function fromISO(s){ const [y,m,d] = s.split('-').map(Number); return new Date(y, m-1, d); }
+function sameDay(a,b){ return a.getFullYear()===b.getFullYear() && a.getMonth()===b.getMonth() && a.getDate()===b.getDate(); }
+function minsOf(hhmm){ if(!hhmm) return null; const [h,m] = hhmm.split(':').map(Number); return h*60+m; }
+function timeLabel(hhmm){
+  if(!hhmm) return '';
+  let [h,m] = hhmm.split(':').map(Number);
+  const ap = h>=12?'PM':'AM';
+  h = h%12; if(h===0) h=12;
+  return h + (m? ':'+pad2(m) : '') + ' ' + ap;
+}
+function showToast(msg){
+  const t = $('#toast'); t.textContent = msg; t.classList.add('show');
+  clearTimeout(showToast._t);
+  showToast._t = setTimeout(()=>t.classList.remove('show'), 2200);
+}
+
+/* ---------------- Tabs ---------------- */
+document.querySelectorAll('.tab').forEach(tab=>{
+  tab.addEventListener('click', ()=>{
+    document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+    tab.classList.add('active');
+    document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
+    activeTab = tab.dataset.tab;
+    $('#view-'+activeTab).classList.add('active');
+    render();
+  });
+});
+$('#todayBtn').addEventListener('click', ()=>{
+  currentMonth = new Date(); currentMonth.setDate(1);
+  currentDay = new Date();
+  render();
+});
+
+/* ---------------- Month view ---------------- */
+function renderMonth(){
+  const y = currentMonth.getFullYear(), m = currentMonth.getMonth();
+  $('#mTitle').textContent = currentMonth.toLocaleDateString(undefined,{month:'long', year:'numeric'});
+  const grid = $('#mGrid'); grid.innerHTML = '';
+  const firstDow = new Date(y,m,1).getDay();
+  const daysInMonth = new Date(y,m+1,0).getDate();
+  const daysInPrev = new Date(y,m,0).getDate();
+  const today = new Date();
+  const cells = [];
+  for(let i=firstDow-1;i>=0;i--) cells.push({d:daysInPrev-i, other:true, date:new Date(y,m-1,daysInPrev-i)});
+  for(let d=1; d<=daysInMonth; d++) cells.push({d, other:false, date:new Date(y,m,d)});
+  while(cells.length % 7 !== 0 || cells.length < 42) cells.push({d:cells.length, other:true, date:new Date(y,m+1, cells.length - firstDow - daysInMonth + 1)});
+  if(cells.length > 42) cells.length = 42;
+
+  cells.forEach(c=>{
+    const cell = document.createElement('div');
+    cell.className = 'day-cell' + (c.other? ' other-month':'') + (sameDay(c.date, today)?' today':'');
+    const iso = toISO(c.date);
+    const dayItems = items.filter(it => it.date === iso);
+    cell.innerHTML = `<div class="dnum">${c.date.getDate()}</div>
+      <div class="dots">${dayItems.slice(0,6).map(it=>{
+        const cls = it.type==='todo' ? 'todo' : (it.kind==='personal' ? 'personal' : '');
+        return `<div class="dot ${cls}"></div>`;
+      }).join('')}</div>`;
+    cell.addEventListener('click', ()=>{
+      currentDay = c.date;
+      document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+      $('.tab[data-tab="day"]').classList.add('active');
+      document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
+      $('#view-day').classList.add('active');
+      activeTab = 'day';
+      render();
+    });
+    grid.appendChild(cell);
+  });
+}
+$('#mPrev').addEventListener('click', ()=>{ currentMonth.setMonth(currentMonth.getMonth()-1); renderMonth(); });
+$('#mNext').addEventListener('click', ()=>{ currentMonth.setMonth(currentMonth.getMonth()+1); renderMonth(); });
+
+/* ---------------- Day view (timeline with column packing) ---------------- */
+const START_HOUR = 6, END_HOUR = 23; // visible window
+function renderDay(){
+  $('#dTitle').textContent = currentDay.toLocaleDateString(undefined,{weekday:'long', month:'short', day:'numeric'});
+  const tl = $('#timeline'); tl.innerHTML = '';
+  const iso = toISO(currentDay);
+  const dayEvents = items.filter(it => it.type==='event' && it.date===iso && it.start)
+    .map(it=>({...it, s:minsOf(it.start), e: minsOf(it.end)|| (minsOf(it.start)+30)}))
+    .sort((a,b)=>a.s-b.s);
+
+  // hour rows (visual grid background)
+  for(let h=START_HOUR; h<=END_HOUR; h++){
+    const row = document.createElement('div');
+    row.className = 'hour-row';
+    row.innerHTML = `<div class="hour-label">${timeLabel(pad2(h)+':00')}</div><div class="hour-slot"></div>`;
+    tl.appendChild(row);
+  }
+
+  // overlap column packing (classic interval graph coloring)
+  const packed = packColumns(dayEvents);
+  const layer = document.createElement('div');
+  layer.className = 'events-layer';
+  const totalMin = (END_HOUR - START_HOUR + 1) * 60;
+  const pxPerMin = 56 / 60; // matches .hour-row min-height 56px per 60 min
+
+  packed.forEach(ev=>{
+    const top = (ev.s - START_HOUR*60) * pxPerMin;
+    const height = Math.max((ev.e - ev.s) * pxPerMin, 30);
+    const widthPct = 100 / ev.cols;
+    const leftPct = widthPct * ev.col;
+    const block = document.createElement('div');
+    block.className = 'evt-block ' + (ev.kind==='personal' ? 'evt-personal' : 'evt-work');
+    block.style.top = top+'px';
+    block.style.height = height+'px';
+    block.style.left = `calc(${leftPct}% + 2px)`;
+    block.style.width = `calc(${widthPct}% - 6px)`;
+    block.innerHTML = `<b>${escapeHtml(ev.label)}</b><span class="time">${timeLabel(ev.start)} – ${timeLabel(ev.end)}</span>`;
+    block.addEventListener('click', ()=> openEditSheet(ev));
+    layer.appendChild(block);
+  });
+  tl.style.position = 'relative';
+  tl.appendChild(layer);
+
+  if(dayEvents.length===0){
+    const hint = document.createElement('div');
+    hint.className = 'empty-hint';
+    hint.textContent = 'No events today. Tap + or hold the mic to add one.';
+    tl.appendChild(hint);
+  }
+
+  // long-press on timeline to quick-add (silent insertion is intentionally NOT default;
+  // long-press just opens a prefilled sheet for the tapped day, same as tapping +)
+  let pressTimer;
+  tl.addEventListener('touchstart', (e)=>{
+    pressTimer = setTimeout(()=>{
+      openAddSheet();
+    }, 550);
+  });
+  tl.addEventListener('touchend', ()=> clearTimeout(pressTimer));
+  tl.addEventListener('touchmove', ()=> clearTimeout(pressTimer));
+}
+
+function packColumns(events){
+  // classic greedy interval column packing
+  const sorted = [...events].sort((a,b)=>a.s-b.s || a.e-b.e);
+  const cols = []; // each: last end time
+  const result = [];
+  sorted.forEach(ev=>{
+    let placed = false;
+    for(let i=0;i<cols.length;i++){
+      if(cols[i] <= ev.s){ cols[i] = ev.e; ev.col = i; placed = true; break; }
+    }
+    if(!placed){ cols.push(ev.e); ev.col = cols.length-1; }
+    result.push(ev);
+  });
+  const maxCols = cols.length;
+  // group overlapping clusters to determine actual concurrent col count per event
+  result.forEach(ev=>{
+    const overlapping = result.filter(o => o.s < ev.e && o.e > ev.s);
+    ev.cols = Math.max(...overlapping.map(o=>o.col+1), maxCols>0?1:1);
+    ev.cols = Math.max(ev.cols, overlapping.length);
+  });
+  return result;
+}
+function escapeHtml(s){ const d=document.createElement('div'); d.textContent=s; return d.innerHTML; }
+
+$('#dPrev').addEventListener('click', ()=>{ currentDay.setDate(currentDay.getDate()-1); renderDay(); });
+$('#dNext').addEventListener('click', ()=>{ currentDay.setDate(currentDay.getDate()+1); renderDay(); });
+
+/* ---------------- Todo view ---------------- */
+function renderTodo(){
+  const list = $('#todoList');
+  const todos = items.filter(it=>it.type==='todo').sort((a,b)=>{
+    if(a.done !== b.done) return a.done? 1 : -1;
+    return (a.date||'').localeCompare(b.date||'');
+  });
+  if(todos.length===0){
+    list.innerHTML = '<div class="empty-hint">No to-dos yet. Tap + to add one.</div>';
+    return;
+  }
+  list.innerHTML = todos.map(t=>`
+    <div class="todo-item" data-id="${t.id}">
+      <div class="todo-check ${t.done?'done':''}" data-action="toggle">${t.done?'✓':''}</div>
+      <div style="flex:1">
+        <div class="todo-text ${t.done?'done':''}">${escapeHtml(t.label)}</div>
+        ${t.date? `<div class="todo-due">${fromISO(t.date).toLocaleDateString(undefined,{month:'short',day:'numeric'})}</div>`:''}
+      </div>
+      <div class="todo-del" data-action="del">✕</div>
+    </div>
+  `).join('');
+  list.querySelectorAll('.todo-item').forEach(row=>{
+    const id = row.dataset.id;
+    row.querySelector('[data-action="toggle"]').addEventListener('click', ()=>{
+      const it = items.find(i=>i.id===id); it.done = !it.done; saveItems(items); renderTodo();
+    });
+    row.querySelector('[data-action="del"]').addEventListener('click', ()=>{
+      items = items.filter(i=>i.id!==id); saveItems(items); renderTodo(); renderMonth();
+    });
+  });
+}
+
+/* ---------------- Render dispatcher ---------------- */
+function render(){
+  renderMonth();
+  renderDay();
+  renderTodo();
+}
+render();
+
+/* ---------------- Add / Edit sheet ---------------- */
+let editingId = null;
+function openAddSheet(prefill){
+  editingId = null;
+  $('#sheetTitle').textContent = 'New item';
+  editingType = (prefill && prefill.type) || 'event';
+  setType(editingType);
+  $('#fLabel').value = (prefill && prefill.label) || '';
+  $('#fDate').value = (prefill && prefill.date) || toISO(activeTab==='day'? currentDay : new Date());
+  $('#fStart').value = (prefill && prefill.start) || '';
+  $('#fEnd').value = (prefill && prefill.end) || '';
+  $('#parsePreview').style.display = 'none';
+  $('#overlay').classList.add('show');
+}
+function openEditSheet(ev){
+  editingId = ev.id;
+  $('#sheetTitle').textContent = 'Edit item';
+  editingType = ev.type;
+  setType(editingType);
+  $('#fLabel').value = ev.label;
+  $('#fDate').value = ev.date;
+  $('#fStart').value = ev.start || '';
+  $('#fEnd').value = ev.end || '';
+  $('#parsePreview').style.display = 'none';
+  $('#overlay').classList.add('show');
+}
+function setType(t){
+  editingType = t;
+  $('#typeEventBtn').classList.toggle('active', t==='event');
+  $('#typeTodoBtn').classList.toggle('active', t==='todo');
+  $('#timeRow').style.display = t==='event' ? 'flex' : 'none';
+}
+$('#typeEventBtn').addEventListener('click', ()=> setType('event'));
+$('#typeTodoBtn').addEventListener('click', ()=> setType('todo'));
+$('#addBtn').addEventListener('click', ()=> openAddSheet());
+$('#cancelBtn').addEventListener('click', ()=> $('#overlay').classList.remove('show'));
+$('#overlay').addEventListener('click', (e)=>{ if(e.target.id==='overlay') $('#overlay').classList.remove('show'); });
+
+$('#saveBtn').addEventListener('click', ()=>{
+  const label = $('#fLabel').value.trim();
+  const date = $('#fDate').value;
+  if(!label || !date){ showToast('Add a label and date'); return; }
+  if(editingId){
+    const it = items.find(i=>i.id===editingId);
+    it.type = editingType; it.label = label; it.date = date;
+    if(editingType==='event'){ it.start = $('#fStart').value; it.end = $('#fEnd').value; }
+  } else {
+    const newItem = { id: cryptoId(), type: editingType, label, date, kind:'personal' };
+    if(editingType==='event'){ newItem.start = $('#fStart').value; newItem.end = $('#fEnd').value; }
+    if(editingType==='todo'){ newItem.done = false; }
+    items.push(newItem);
+  }
+  saveItems(items);
+  $('#overlay').classList.remove('show');
+  render();
+  showToast('Saved');
+});
+
+/* ================= VOICE + NLP PARSER ================= */
+const WEEKDAYS = ['sunday','monday','tuesday','wednesday','thursday','friday','saturday'];
+const MONTHS = ['january','february','march','april','may','june','july','august','september','october','november','december'];
+const WORD_NUMS = {
+  'one':1,'two':2,'three':3,'four':4,'five':5,'six':6,'seven':7,'eight':8,'nine':9,'ten':10,
+  'eleven':11,'twelve':12,'thirteen':13,'fourteen':14,'fifteen':15,'sixteen':16,'seventeen':17,
+  'eighteen':18,'nineteen':19,'twenty':20,'thirty':30,'forty':40,'fifty':50,
+  'first':1,'second':2,'third':3,'fourth':4,'fifth':5,'sixth':6,'seventh':7,'eighth':8,'ninth':9,'tenth':10,
+  'eleventh':11,'twelfth':12,'thirteenth':13,'fourteenth':14,'fifteenth':15,'sixteenth':16,
+  'seventeenth':17,'eighteenth':18,'nineteenth':19,'twentieth':20,'twenty-first':21,'thirtieth':30,'thirty-first':31
+};
+function wordToNum(w){
+  w = w.toLowerCase();
+  if(/^\d+$/.test(w)) return parseInt(w,10);
+  if(WORD_NUMS[w]!==undefined) return WORD_NUMS[w];
+  // handle "twenty five" style compound already split by regex separately
+  return null;
+}
+
+function parseSpeech(raw){
+  let text = raw.toLowerCase().trim();
+  let dayMatch = null, timeMatch = null;
+  let workingDate = new Date(); workingDate.setHours(0,0,0,0);
+  let consumed = [];
+
+  // ---- 1. explicit "the Nth of Month" or "Month Nth" ----
+  let m;
+  if((m = text.match(/\bthe\s+(\d{1,2}|[a-z-]+)(?:st|nd|rd|th)?\s+of\s+(\w+)\b/))){
+    const dayNum = wordToNum(m[1]) || parseInt(m[1],10);
+    const monIdx = MONTHS.findIndex(mo=>m[2].startsWith(mo.slice(0,3)));
+    if(dayNum && monIdx>=0){
+      const y = workingDate.getFullYear();
+      let d = new Date(y, monIdx, dayNum);
+      if(d < workingDate) d = new Date(y+1, monIdx, dayNum);
+      dayMatch = d; consumed.push(m[0]);
+    }
+  }
+  if(!dayMatch && (m = text.match(/\b(\w+)\s+(\d{1,2}|[a-z-]+)(?:st|nd|rd|th)?\b/))){
+    const monIdx = MONTHS.findIndex(mo=>m[1].startsWith(mo.slice(0,3)));
+    const dayNum = wordToNum(m[2]) || parseInt(m[2],10);
+    if(monIdx>=0 && dayNum){
+      const y = workingDate.getFullYear();
+      let d = new Date(y, monIdx, dayNum);
+      if(d < workingDate) d = new Date(y+1, monIdx, dayNum);
+      dayMatch = d; consumed.push(m[0]);
+    }
+  }
+
+  // ---- 2. relative days ----
+  if(!dayMatch){
+    if(/\btoday\b/.test(text)){ dayMatch = new Date(workingDate); consumed.push('today'); }
+    else if(/\btomorrow\b/.test(text)){ dayMatch = addDays(workingDate,1); consumed.push('tomorrow'); }
+    else if(/\bday after tomorrow\b/.test(text)){ dayMatch = addDays(workingDate,2); consumed.push('day after tomorrow'); }
+  }
+
+  // ---- 3. "next <weekday>" / "this <weekday>" / bare weekday ----
+  if(!dayMatch){
+    const wdRe = new RegExp('\\b(next\\s+|this\\s+|coming\\s+)?(' + WEEKDAYS.join('|') + ')\\b');
+    if((m = text.match(wdRe))){
+      const targetDow = WEEKDAYS.indexOf(m[2]);
+      const isNext = !!(m[1] && m[1].trim()==='next');
+      let d = new Date(workingDate);
+      let diff = (targetDow - d.getDay() + 7) % 7;
+      if(diff === 0) diff = isNext ? 7 : 0; // bare "saturday" said ON saturday -> today; "next saturday" -> +7
+      if(isNext && diff < 7 && diff !== 0) diff += 0; // "next" still means the upcoming one if not today
+      if(isNext && diff === 0) diff = 7;
+      d = addDays(d, diff);
+      dayMatch = d; consumed.push(m[0]);
+    }
+  }
+
+  // fallback: today
+  if(!dayMatch) dayMatch = new Date(workingDate);
+
+  // ---- 4. time extraction ----
+  // explicit "6pm", "6:30pm", "18:00"
+  if((m = text.match(/\b(\d{1,2}):(\d{2})\s*(am|pm)?\b/))){
+    let h = parseInt(m[1],10), mm = parseInt(m[2],10);
+    if(m[3]==='pm' && h<12) h+=12;
+    if(m[3]==='am' && h===12) h=0;
+    timeMatch = {h, m:mm};
+    consumed.push(m[0]);
+  } else if((m = text.match(/\b(\d{1,2})\s?(am|pm)\b/))){
+    let h = parseInt(m[1],10);
+    if(m[2]==='pm' && h<12) h+=12;
+    if(m[2]==='am' && h===12) h=0;
+    timeMatch = {h, m:0};
+    consumed.push(m[0]);
+  } else {
+    // spoken numbers: "at six", "at half past six", "six in the evening"
+    const halfPast = text.match(/\bhalf\s+past\s+(\w+)\b/);
+    const quarterTo = text.match(/\bquarter\s+to\s+(\w+)\b/);
+    const quarterPast = text.match(/\bquarter\s+past\s+(\w+)\b/);
+    const atWord = text.match(/\bat\s+(\w+)(?:\s+(o'?clock))?\b/);
+    let hourWord = null, minOffset = 0;
+    if(halfPast){ hourWord = halfPast[1]; minOffset = 30; consumed.push(halfPast[0]); }
+    else if(quarterTo){ hourWord = quarterTo[1]; minOffset = -15; consumed.push(quarterTo[0]); }
+    else if(quarterPast){ hourWord = quarterPast[1]; minOffset = 15; consumed.push(quarterPast[0]); }
+    else if(atWord){ hourWord = atWord[1]; consumed.push(atWord[0]); }
+
+    if(hourWord){
+      let h = wordToNum(hourWord);
+      if(h!=null){
+        let mm = 0;
+        if(minOffset === 30) mm = 30;
+        else if(minOffset === 15) mm = 15;
+        else if(minOffset === -15){ h = h-1; mm = 45; }
+        // determine am/pm from context words
+        if(/\bevening\b/.test(text) || /\bnight\b/.test(text)){ if(h<12) h+=12; }
+        else if(/\bmorning\b/.test(text)){ if(h===12) h=0; }
+        else if(/\bafternoon\b/.test(text)){ if(h<12) h+=12; }
+        else { if(h>=1 && h<=7) h+=12; } // loose default: small hours assumed PM unless "morning" said
+        timeMatch = {h: ((h%24)+24)%24, m: mm};
+      }
+    } else {
+      // vague slot words only
+      if(/\bmorning\b/.test(text)){ timeMatch = {h:9,m:0}; consumed.push('morning'); }
+      else if(/\bafternoon\b/.test(text)){ timeMatch = {h:14,m:0}; consumed.push('afternoon'); }
+      else if(/\bevening\b/.test(text)){ timeMatch = {h:18,m:0}; consumed.push('evening'); }
+      else if(/\bnight\b/.test(text)){ timeMatch = {h:20,m:0}; consumed.push('night'); }
+    }
+  }
+
+  // ---- 5. label = leftover text with filler stripped ----
+  let label = raw;
+  consumed.forEach(c=>{ label = label.replace(new RegExp(c.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'),'i'), ''); });
+  label = label
+    .replace(/\b(at|on|for|next|this|coming|the|of|o'?clock)\b/gi,' ')
+    .replace(/\s+/g,' ')
+    .trim();
+  if(label.length){ label = label[0].toUpperCase() + label.slice(1); }
+  if(!label) label = 'New event';
+
+  const startH = timeMatch ? timeMatch.h : null;
+  const startM = timeMatch ? timeMatch.m : 0;
+  const startStr = timeMatch ? pad2(startH)+':'+pad2(startM) : '';
+  let endStr = '';
+  if(timeMatch){
+    let endMin = startH*60+startM+60; // default 1hr duration, editable
+    endMin = Math.min(endMin, 23*60+59);
+    endStr = pad2(Math.floor(endMin/60))+':'+pad2(endMin%60);
+  }
+
+  return {
+    date: toISO(dayMatch),
+    start: startStr,
+    end: endStr,
+    label
+  };
+}
+function addDays(d,n){ const r = new Date(d); r.setDate(r.getDate()+n); return r; }
+
+/* ---------------- Speech recognition ---------------- */
+const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+let recognizing = false, recognizer = null;
+if(SpeechRecognition){
+  recognizer = new SpeechRecognition();
+  recognizer.lang = 'en-IN';
+  recognizer.interimResults = false;
+  recognizer.maxAlternatives = 1;
+
+  recognizer.onstart = ()=>{ recognizing = true; $('#micBtn').classList.add('listening'); };
+  recognizer.onend = ()=>{ recognizing = false; $('#micBtn').classList.remove('listening'); };
+  recognizer.onerror = (e)=>{
+    recognizing = false; $('#micBtn').classList.remove('listening');
+    showToast('Mic error: ' + (e.error || 'try again'));
+  };
+  recognizer.onresult = (e)=>{
+    const transcript = e.results[0][0].transcript;
+    const parsed = parseSpeech(transcript);
+    editingId = null;
+    $('#sheetTitle').textContent = 'Confirm voice entry';
+    setType('event');
+    $('#fLabel').value = parsed.label;
+    $('#fDate').value = parsed.date;
+    $('#fStart').value = parsed.start;
+    $('#fEnd').value = parsed.end;
+    const pv = $('#parsePreview');
+    pv.style.display = 'block';
+    pv.innerHTML = `Heard: <b>"${escapeHtml(transcript)}"</b><br>Parsed as <b>${fromISO(parsed.date).toLocaleDateString(undefined,{weekday:'long', month:'short', day:'numeric'})}</b>${parsed.start? ' at <b>'+timeLabel(parsed.start)+'</b>':''}. Edit anything below before saving.`;
+    $('#overlay').classList.add('show');
+  };
+} else {
+  $('#micBtn').addEventListener('click', ()=> showToast('Voice input not supported in this browser'));
+}
+$('#micBtn').addEventListener('click', ()=>{
+  if(!recognizer) return;
+  if(recognizing){ recognizer.stop(); return; }
+  try{ recognizer.start(); }catch(e){ /* already started */ }
+});
+</script>
+</body>
+</html>
